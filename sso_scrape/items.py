@@ -12,3 +12,4 @@ class legisItem(scrapy.Item):
   html = scrapy.Field()
   pdf = scrapy.Field()
   subsid = scrapy.Field()
+  content = scrapy.Field()
