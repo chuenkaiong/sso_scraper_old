@@ -8,8 +8,8 @@ import scrapy
 
 class legisItem(scrapy.Item):
   title = scrapy.Field()
+  shorthand = scrapy.Field()
   link = scrapy.Field()
   html = scrapy.Field()
   pdf = scrapy.Field()
   subsid = scrapy.Field()
-  content = scrapy.Field()

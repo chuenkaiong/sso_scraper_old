@@ -1,6 +1,7 @@
 import scrapy
 import datetime
 import requests
+import json 
 from sso_scrape.items import legisItem
 
 class SsoSpider(scrapy.Spider):
@@ -8,7 +9,7 @@ class SsoSpider(scrapy.Spider):
   allowed_domains = ['sso.agc.gov.sg']
   start_urls = ['https://sso.agc.gov.sg/Browse/Act/Current']
 
-  def __init__(self, retrieve="ALL", sl=False, date=datetime.date.today().strftime("%Y%m%d"), pdf=False, saveTo="./"):
+  def __init__(self, retrieve="ALL", sl=False, date=datetime.date.today().strftime("%Y%m%d"), pdf=False, saveTo="./data"):
     self.retrieve = retrieve
     self.include_subsid = sl
     self.date = date
@@ -31,8 +32,6 @@ class SsoSpider(scrapy.Spider):
 
   def parse(self, response):
     if self.retrieve == "ALL":
-      acts = response.xpath("//table[@class='table browse-list']/tbody/tr")
-      
       yield from self.scrape_all(response)
 
       # navigate to next page
@@ -46,6 +45,7 @@ class SsoSpider(scrapy.Spider):
       item = legisItem()
       link = f"https://sso.agc.gov.sg/Act/{self.retrieve}"
       item["title"] = response.xpath("//div[@class='legis-title']/div/text()").get()
+      item["shorthand"] = self.retrieve
       item["link"] = link
       
       if self.pdf:
@@ -56,15 +56,23 @@ class SsoSpider(scrapy.Spider):
         subsid_link = response.xpath("//ul[@class='dropdown-menu dropdown-menu-right']/li/a/@href").get()
         item["subsid"] = f"https://sso.agc.gov.sg{subsid_link}" if subsid_link else None
 
-      item["content"] = self.get_body(response)
+      item["html"] = self.get_body(response)
+
+      self.write_to_file(self.saveTo, item)
       yield item
 
   def scrape_all(self, response):   # create item for each piece of legislation, for further parsing 
     acts =  response.xpath("//table[@class='table browse-list']/tbody/tr")
+
+    # FOR TESTING PURPOSES - REMOVE WHEN DONE
+    acts = acts[:3]
+    # FOR TESTING PURPOSES
+
     for act in acts:
       item = legisItem()
       item["title"] = act.xpath(".//td[1]/a[@class='non-ajax']/text()").get()
       link = f"https://sso.agc.gov.sg{act.xpath('.//a/@href').get()}"
+      item["shorthand"] = link.split("/")[-1]
       item["link"] = link
 
       # if options are set 
@@ -76,13 +84,52 @@ class SsoSpider(scrapy.Spider):
         subsid_link = act.xpath("./td/a[@class='non-ajax sl']/@href").get()
         item["subsid"] = f"https://sso.agc.gov.sg{subsid_link}" if subsid_link else None
 
-      yield item 
+      request = scrapy.Request(url=link, callback=self.scrape_one)
+      request.meta["item"] = item
+      yield request
 
   def scrape_one(self, response):   # Handles individual responses when crawling URLs from the /All page
     item = response.meta["item"]
-    item["content"] = self.get_body(response)
+    item["html"] = self.get_body(response)
+    self.write_to_file(self.saveTo, item)
     yield item
   
   def get_body(self, response):   # function to grab the relevant parts from a given response
-    return "PLACEHOLDER PLACEHOLDER PLACEHOLDER PLACEHOLDER PLACEHOLDER"
+    headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+    }
 
+    data = json.loads(response.xpath("//div[@class='global-vars']/@data-json")[1].get())
+    toc_sys_id = data["tocSysId"]
+    series_ids = [div.attrib["data-term"] for div in response.xpath("//div[@class='dms']")]
+
+    parts = []
+
+    for series_id in series_ids:
+      frag_sys_id = data["fragments"][series_id]["Item1"]
+      dt_id = data["fragments"][series_id]["Item2"]
+      url = "https://sso.agc.gov.sg/Details/GetLazyLoadContent?TocSysId={}&SeriesId={}".format(toc_sys_id, series_id) + \
+        "&ValidTime=&TransactionTime=&ViewType=&V=25&Phrase=&Exact=&Any=&Without=&WiAl=&WiPr=&WiLT=&WiSc=" + \
+        "&WiDT=&WiDH=&WiES=&WiPH=&RefinePhrase=&RefineWithin=&CustomSearchId=&FragSysId={}&_={}".format(frag_sys_id, dt_id)
+      
+      parts.append(download_part(url, headers))
+    
+    return stitch_parts(parts)
+
+  def write_to_file(self, saveTo, item):
+    with open(f"{saveTo}/{item['shorthand']}.html", "w") as f:
+      f.write(item["html"])
+
+# Not sure whether to put these inside the spider definition or leave them out here 
+def download_part(url, headers):
+    r = requests.get(url, headers=headers)
+    if r.status_code != requests.status_codes.codes.ok:
+        print('URL not found: ' + url)
+        return ''
+    return r.text
+
+def stitch_parts(parts):
+    first, *remaining = parts
+    insert_idx = first.find('<div class="dms"')
+    return first[:insert_idx] + ''.join(remaining) + first[insert_idx:]
