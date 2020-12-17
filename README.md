@@ -2,6 +2,11 @@
 ## Description
 Scraper for legislation from [sso.agc.gov.sg](sso.agc.gov.sg).
 
+## Requirements 
+Package requirements:
+* scrapy
+* requests
+
 ## TODOs
 ### Passing arguments
 Find a better way to pass arguments into scrapy. 
