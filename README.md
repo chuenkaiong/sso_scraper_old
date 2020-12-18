@@ -8,7 +8,7 @@ Package requirements:
 * requests
 
 ## Usage 
-While in project root:
+While in project root:  
 `scrapy crawl sso`
 
 Options may be passed using `-a`:
