@@ -1,11 +1,23 @@
 # SSO Scraper
 ## Description
-Scraper for legislation from [sso.agc.gov.sg](sso.agc.gov.sg).
+Scraper for legislation from sso.agc.gov.sg
 
 ## Requirements 
 Package requirements:
 * scrapy
 * requests
+
+## Usage 
+While in project root:
+`scrapy crawl sso`
+
+Options may be passed using `-a`:
+* Retrieve legislation based on `-a retrieve=AA2004`
+* Retrieve legislation in PDF format (in progress): `-a pdf=True`
+* Additionally retrieve subsidiary legislation (in progress): `-a sl=True`
+* Retrieve legislation in force as of a specified date (in progress): `-a date=20201231` (date in YYYYMMDD format)
+* Specify location to save scraped content (not complete): `-a saveTo=./[folder]`
+
 
 ## TODOs
 ### Passing arguments
