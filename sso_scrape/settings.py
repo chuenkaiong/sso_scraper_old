@@ -14,7 +14,9 @@ NEWSPIDER_MODULE = 'sso_scrape.spiders'
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = 'sso_scrape (+http://www.yourdomain.com)'
+USER_AGENT = 'SMU Center for Computational Law (cclaw@smu.edu.sg)'
+# ONLY FOR DEVELOPMENT - TODO: delete this when packaging!
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:94.0) Gecko/20100101 Firefox/94.0'
 
 # Obey robots.txt rules
 # TODO: SET TO TRUE WHEN WE'RE DONE TESTING
