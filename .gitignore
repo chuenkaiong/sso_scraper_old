@@ -1,4 +1,4 @@
-envs
+env
 sso_scrape/__pycache__/*
 sso_scrape/spiders/__pycache__
 .vscode
