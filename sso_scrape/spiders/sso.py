@@ -1,8 +1,11 @@
 import scrapy
+from scrapy.exceptions import CloseSpider
 import datetime
 import requests
 import json 
 from sso_scrape.items import legisItem
+from ..lib import filemgr
+
 
 # Scrapy spider that retrieves either a single Act or all Acts from a contents page and downloads them into a specified folder. 
 # If the user requests all Acts, the response is passed to scrape_all(), which subsequently calls scrape_one() to retrieve the content of the Act.
@@ -20,6 +23,10 @@ class SsoSpider(scrapy.Spider):
 
   # Scrapy function that defines where the first HTTP request is sent
   def start_requests(self):
+    # check user-defined save location 
+    if not filemgr.check_save_location(self.saveTo):
+      raise CloseSpider("User abort")
+
     if self.retrieve == "ALL":
       # if user does not specify which Act to retrieve, start from the contents page.
       # TODO: handle date 
@@ -114,6 +121,7 @@ class SsoSpider(scrapy.Spider):
   # For pages that use lazyload, takes the data and makes HTTP calls to get the information, then stitches the retrieved parts together. 
   # TODO: pages that directly include the content of the Act. 
   def get_body(self, response):   
+    # TODO: Change the headers here before completion! 
     headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
