@@ -122,7 +122,7 @@ class SsoSpider(scrapy.Spider):
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
     }  
 
-    # Get the parameters with which to request lazyload content
+    # Gets non-lazy loaded content
     data = response.xpath("//div[@class='prov1']").extract()
     non_lazy_load =''
     for i in data:
@@ -146,9 +146,10 @@ class SsoSpider(scrapy.Spider):
     
     return stitch_parts(parts)
 
-  # write contents of Act to file.
+  # write contents of Act to file
   def write_to_file(self, saveTo, item):
     with open(f"{saveTo}/{item['shorthand']}.html", "w") as f:
+      #handles unicode encode error
       f.write(item["html"].encode('ascii', errors='ignore').decode('unicode-escape'))
 
 # Downloads additional HTML parts
