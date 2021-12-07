@@ -7,6 +7,9 @@ from sso_scrape.items import legisItem
 # Scrapy spider that retrieves either a single Act or all Acts from a contents page and downloads them into a specified folder. 
 # If the user requests all Acts, the response is passed to scrape_all(), which subsequently calls scrape_one() to retrieve the content of the Act.
 # If the user requests a specific Act, the content of the Act is directly retrieved and written to file. 
+
+
+
 class SsoSpider(scrapy.Spider):
   name = 'sso'
   allowed_domains = ['sso.agc.gov.sg']
@@ -117,14 +120,19 @@ class SsoSpider(scrapy.Spider):
     headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-    }
+    }  
 
+    # Get the parameters with which to request lazyload content
+    data = response.xpath("//div[@class='prov1']").extract()
+    non_lazy_load =''
+    for i in data:
+      non_lazy_load += i
     # Get the parameters with which to request lazyload content
     data = json.loads(response.xpath("//div[@class='global-vars']/@data-json")[1].get())
     toc_sys_id = data["tocSysId"]
     series_ids = [div.attrib["data-term"] for div in response.xpath("//div[@class='dms']")]
 
-    parts = []
+    parts = [non_lazy_load]
 
     # Request content in parts
     for series_id in series_ids:
