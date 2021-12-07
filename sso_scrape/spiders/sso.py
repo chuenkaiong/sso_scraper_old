@@ -69,9 +69,14 @@ class SsoSpider(scrapy.Spider):
         pdf_link = response.xpath("//a[@class='file-download']/@href").get()
         item["pdf"] = f"https://sso.agc.gov.sg{pdf_link}" if pdf_link else None
 
-      if self.include_subsid:
-        subsid_link = response.xpath("//ul[@class='dropdown-menu dropdown-menu-right']/li/a/@href").get()
-        item["subsid"] = f"https://sso.agc.gov.sg{subsid_link}" if subsid_link else None
+      subsid_link = response.xpath("//ul[@class='nav nav-pills float-start']/li/a/@href").get()
+      if subsid_link:
+        subsid_link = response.xpath("//ul[@class='nav nav-pills float-start']/li/a/@href")[0].get()
+        if subsid_link != '#':        
+          item["subsid"] = f"https://sso.agc.gov.sg{subsid_link}"
+        else:
+          subsid_link = response.xpath("//ul[@class='nav nav-pills float-start']/li/a/@href")[1].get()
+          item["subsid"] = f"https://sso.agc.gov.sg{subsid_link}"
 
       # grab the desired html and put it in the html attribute of the legisItem (TODO - handle situation where self.pdf == True)
       item["html"] = self.get_body(response)
@@ -101,9 +106,14 @@ class SsoSpider(scrapy.Spider):
         pdf_link = act.xpath("./td/a[@class='non-ajax file-download']/@href").get()
         item["pdf"] = f"https://sso.agc.gov.sg{pdf_link}" if pdf_link else None
 
-      if self.include_subsid:
-        subsid_link = act.xpath("./td/a[@class='non-ajax sl']/@href").get()
-        item["subsid"] = f"https://sso.agc.gov.sg{subsid_link}" if subsid_link else None
+      subsid_link = act.xpath("//ul[@class='nav nav-pills float-start']/li/a/@href").get()
+      if subsid_link:
+        subsid_link = act.xpath("//ul[@class='nav nav-pills float-start']/li/a/@href")[0].get()
+        if subsid_link != '#':        
+          item["subsid"] = f"https://sso.agc.gov.sg{subsid_link}"
+        else:
+          subsid_link = act.xpath("//ul[@class='nav nav-pills float-start']/li/a/@href")[1].get()
+          item["subsid"] = f"https://sso.agc.gov.sg{subsid_link}"
 
       # pass each legisItem to scrape_one() to write the contents of the Act to a file
       request = scrapy.Request(url=link, callback=self.scrape_one)
@@ -158,6 +168,8 @@ class SsoSpider(scrapy.Spider):
   def write_to_file(self, saveTo, item):
     with open(f"{saveTo}/{item['shorthand']}.html", "w") as f:
       #handles unicode encode error
+      if 'subsid' in item:
+        f.write(f"Subsidiary Legislation Link: {item['subsid']}")
       f.write(item["html"].encode('ascii', errors='ignore').decode('unicode-escape'))
 
 # Downloads additional HTML parts
