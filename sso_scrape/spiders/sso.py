@@ -80,7 +80,7 @@ class SsoSpider(scrapy.Spider):
     acts =  response.xpath("//table[@class='table browse-list']/tbody/tr")
 
     # FOR TESTING PURPOSES - to shorten testing process. Remove when finished with testing. 
-    acts = acts[:2]
+    acts = acts[:5]
 
     # Create legisItem for each link to an Act in the response, set attributes of legisItem. 
     for act in acts:
@@ -149,7 +149,7 @@ class SsoSpider(scrapy.Spider):
   # write contents of Act to file.
   def write_to_file(self, saveTo, item):
     with open(f"{saveTo}/{item['shorthand']}.html", "w") as f:
-      f.write(item["html"])
+      f.write(item["html"].encode('ascii', errors='ignore').decode('unicode-escape'))
 
 # Downloads additional HTML parts
 # (Not sure whether to put these inside the spider definition or leave them out here)
