@@ -1,6 +1,5 @@
 import os 
-target = "D:\Documents\SMU\TA RA stuff local\CCLAW\scrapers"
-badtarget = "D:\Documents\SMU\TA RA stuff local\CCLAW\scrapers\\test"
+
 
 def check_save_location(path):
   if os.path.isdir(path):
@@ -21,11 +20,6 @@ def check_save_location(path):
     while user_input not in ["y","n"]:
       user_input = input("(y/n): ")
     if user_input == "y":
-      os.makedirs(target)
+      os.makedirs(path)
       return True
     return False
-
-
-if __name__ == "__main__":
-  # check_save_location(target)
-  check_save_location("../../data")
