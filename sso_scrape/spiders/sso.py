@@ -65,10 +65,14 @@ class SsoSpider(scrapy.Spider):
       item["shorthand"] = self.retrieve
       item["link"] = link
       
-      if self.pdf:
-        pdf_link = response.xpath("//a[@class='file-download']/@href").get()
-        item["pdf"] = f"https://sso.agc.gov.sg{pdf_link}" if pdf_link else None
+      #finds pdf link
+      pdf_link = response.xpath("//div[@class='legis-title']/a/@href").get()
+      if pdf_link:
+        item["pdf"] = 'Yes'
+      else:
+        item['pdf'] = 'No'
 
+      #finds subsid link, format for some pages differ, i.e. some links are at [0] and some are at [1]
       subsid_link = response.xpath("//ul[@class='nav nav-pills float-start']/li/a/@href").get()
       if subsid_link:
         subsid_link = response.xpath("//ul[@class='nav nav-pills float-start']/li/a/@href")[0].get()
@@ -102,10 +106,12 @@ class SsoSpider(scrapy.Spider):
       item["shorthand"] = link.split("/")[-1]
       item["link"] = link
 
-      if self.pdf:
-        pdf_link = act.xpath("./td/a[@class='non-ajax file-download']/@href").get()
-        item["pdf"] = f"https://sso.agc.gov.sg{pdf_link}" if pdf_link else None
-
+      #finds pdf link - not working in for loop
+      pdf_link = act.xpath("//div[@class='legis-title']/a/@href").get()
+      if pdf_link:
+        item["pdf"] = 'Yes'
+      
+      #finds subsid link - not working in for loop
       subsid_link = act.xpath("//ul[@class='nav nav-pills float-start']/li/a/@href").get()
       if subsid_link:
         subsid_link = act.xpath("//ul[@class='nav nav-pills float-start']/li/a/@href")[0].get()
@@ -167,9 +173,10 @@ class SsoSpider(scrapy.Spider):
   # write contents of Act to file
   def write_to_file(self, saveTo, item):
     with open(f"{saveTo}/{item['shorthand']}.html", "w") as f:
-      #handles unicode encode error
+      #prints subsid link at the top of .html file
       if 'subsid' in item:
         f.write(f"Subsidiary Legislation Link: {item['subsid']}")
+      #handles unicode encode error
       f.write(item["html"].encode('ascii', errors='ignore').decode('unicode-escape'))
 
 # Downloads additional HTML parts
