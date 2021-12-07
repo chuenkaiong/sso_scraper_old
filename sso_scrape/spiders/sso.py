@@ -10,6 +10,9 @@ from ..lib import filemgr
 # Scrapy spider that retrieves either a single Act or all Acts from a contents page and downloads them into a specified folder. 
 # If the user requests all Acts, the response is passed to scrape_all(), which subsequently calls scrape_one() to retrieve the content of the Act.
 # If the user requests a specific Act, the content of the Act is directly retrieved and written to file. 
+
+
+
 class SsoSpider(scrapy.Spider):
   name = 'sso'
   allowed_domains = ['sso.agc.gov.sg']
@@ -84,7 +87,7 @@ class SsoSpider(scrapy.Spider):
     acts =  response.xpath("//table[@class='table browse-list']/tbody/tr")
 
     # FOR TESTING PURPOSES - to shorten testing process. Remove when finished with testing. 
-    acts = acts[:2]
+    acts = acts[:5]
 
     # Create legisItem for each link to an Act in the response, set attributes of legisItem. 
     for act in acts:
@@ -125,14 +128,19 @@ class SsoSpider(scrapy.Spider):
     headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-    }
+    }  
 
+    # Gets non-lazy loaded content
+    data = response.xpath("//div[@class='prov1']").extract()
+    non_lazy_load =''
+    for i in data:
+      non_lazy_load += i
     # Get the parameters with which to request lazyload content
     data = json.loads(response.xpath("//div[@class='global-vars']/@data-json")[1].get())
     toc_sys_id = data["tocSysId"]
     series_ids = [div.attrib["data-term"] for div in response.xpath("//div[@class='dms']")]
 
-    parts = []
+    parts = [non_lazy_load]
 
     # Request content in parts
     for series_id in series_ids:
@@ -146,10 +154,11 @@ class SsoSpider(scrapy.Spider):
     
     return stitch_parts(parts)
 
-  # write contents of Act to file.
+  # write contents of Act to file
   def write_to_file(self, saveTo, item):
     with open(f"{saveTo}/{item['shorthand']}.html", "w") as f:
-      f.write(item["html"])
+      #handles unicode encode error
+      f.write(item["html"].encode('ascii', errors='ignore').decode('unicode-escape'))
 
 # Downloads additional HTML parts
 # (Not sure whether to put these inside the spider definition or leave them out here)
