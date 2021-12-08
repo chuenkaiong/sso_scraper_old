@@ -76,15 +76,31 @@ class SsoSpider(scrapy.Spider):
       item["html"] = self.get_body(response)
 
       # write to file in folder (defined in CLI argument)
-      self.write_to_file(self.saveTo, item)
 
       if self.include_subsid:
         subsid_link = f"https://sso.agc.gov.sg/Act/{self.retrieve}?DocType=Act&ViewType=Sl&PageIndex=0&PageSize=500"
         yield scrapy.Request(url=subsid_link, meta= item, callback = self.parse_subsid)
+      
+      else:
+        self.write_to_file(self.saveTo, item)
 
       yield item
 
   def parse_subsid(self, response):
+    #enables to print out subsidiary legislation titles with the main act
+    item = legisItem()
+    item['html'] = response.meta.get('html')
+    item['shorthand'] = response.meta.get('shorthand')
+    item['link'] = response.meta.get('link')
+    data = response.xpath("//table[@class='table browse-list']/tbody/tr/td/a/text()").extract()
+    res = []
+    for sub in data:
+      res.append(sub)
+    item['subsid'] = res
+    yield item
+    self.write_to_file(self.saveTo, item)
+    
+    #finds subsidiary legislation and gets the title, link etc of subsid 
     all_subsid = response.xpath("//table[@class='table browse-list']/tbody/tr")
     for sub in all_subsid:
       item = subsidItem()
@@ -99,7 +115,7 @@ class SsoSpider(scrapy.Spider):
   
   def get_subsid(self, response):
     item = response.meta["subsidItem"]
-    item["html"] = response.xpath("//*[@id='legis']").get()
+    item["html"] = response.xpath("//td[@class='openWd']").get() + self.get_body(response)
     # TODO - ^ get data more cleanly without all the headers (figure out selectors) 
     self.write_to_file(self.saveTo, item)
     yield item
@@ -111,7 +127,7 @@ class SsoSpider(scrapy.Spider):
     acts =  response.xpath("//table[@class='table browse-list']/tbody/tr")
 
     # FOR TESTING PURPOSES - to shorten testing process. Remove when finished with testing. 
-    acts = acts[:5]
+    acts = acts[:3]
 
     # Create legisItem for each link to an Act in the response, set attributes of legisItem. 
     for act in acts:
@@ -126,15 +142,10 @@ class SsoSpider(scrapy.Spider):
       if pdf_link:
         item["pdf"] = 'Yes'
       
-      #finds subsid link - not working in for loop
-      subsid_link = act.xpath("//ul[@class='nav nav-pills float-start']/li/a/@href").get()
-      if subsid_link:
-        subsid_link = act.xpath("//ul[@class='nav nav-pills float-start']/li/a/@href")[0].get()
-        if subsid_link != '#':        
-          item["subsid"] = f"https://sso.agc.gov.sg{subsid_link}"
-        else:
-          subsid_link = act.xpath("//ul[@class='nav nav-pills float-start']/li/a/@href")[1].get()
-          item["subsid"] = f"https://sso.agc.gov.sg{subsid_link}"
+      #finds subsid link - freezes
+      # if self.include_subsid:
+      #   subsid_link = f"https://sso.agc.gov.sg/Act/{item['shorthand']}?DocType=Act&ViewType=Sl&PageIndex=0&PageSize=500"
+      #   yield scrapy.Request(url=subsid_link, meta= item, callback = self.parse_subsid)
 
       # pass each legisItem to scrape_one() to write the contents of the Act to a file
       request = scrapy.Request(url=link, callback=self.scrape_one)
