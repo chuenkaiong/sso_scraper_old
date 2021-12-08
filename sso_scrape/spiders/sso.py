@@ -72,23 +72,26 @@ class SsoSpider(scrapy.Spider):
       else:
         item['pdf'] = 'No'
 
-      #finds subsid link, format for some pages differ, i.e. some links are at [0] and some are at [1]
-      subsid_link = response.xpath("//ul[@class='nav nav-pills float-start']/li/a/@href").get()
-      if subsid_link:
-        subsid_link = response.xpath("//ul[@class='nav nav-pills float-start']/li/a/@href")[0].get()
-        if subsid_link != '#':        
-          item["subsid"] = f"https://sso.agc.gov.sg{subsid_link}"
-        else:
-          subsid_link = response.xpath("//ul[@class='nav nav-pills float-start']/li/a/@href")[1].get()
-          item["subsid"] = f"https://sso.agc.gov.sg{subsid_link}"
-
       # grab the desired html and put it in the html attribute of the legisItem (TODO - handle situation where self.pdf == True)
       item["html"] = self.get_body(response)
 
       # write to file in folder (defined in CLI argument)
       self.write_to_file(self.saveTo, item)
+
+      subsid_link = f"https://sso.agc.gov.sg/Act/{self.retrieve}?DocType=Act&ViewType=Sl&PageIndex=0&PageSize=500"
+      yield scrapy.http.Request(url=subsid_link, meta= item, callback = self.parse_subsid)
+
       yield item
 
+  def parse_subsid(self, response):
+    item = legisItem()
+    data = response.xpath("//table[@class='table browse-list']/tbody/tr/td/a/text()").extract()
+    res = []
+    for sub in data:
+      res.append(sub)
+    item['subsid'] = res
+    yield item
+  
 
   # Scrape links to individual Acts from contents page, creating a legisItem for each. 
   # Then pass each legisItem to scrape_one() to obtain their contents
@@ -193,3 +196,4 @@ def stitch_parts(parts):
     first, *remaining = parts
     insert_idx = first.find('<div class="dms"')
     return first[:insert_idx] + ''.join(remaining) + first[insert_idx:]
+
