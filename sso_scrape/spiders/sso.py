@@ -3,7 +3,7 @@ from scrapy.exceptions import CloseSpider
 import datetime
 import requests
 import json 
-from sso_scrape.items import legisItem
+from sso_scrape.items import legisItem, subsidItem
 from ..lib import filemgr
 
 
@@ -78,20 +78,32 @@ class SsoSpider(scrapy.Spider):
       # write to file in folder (defined in CLI argument)
       self.write_to_file(self.saveTo, item)
 
-      subsid_link = f"https://sso.agc.gov.sg/Act/{self.retrieve}?DocType=Act&ViewType=Sl&PageIndex=0&PageSize=500"
-      yield scrapy.http.Request(url=subsid_link, meta= item, callback = self.parse_subsid)
+      if self.include_subsid:
+        subsid_link = f"https://sso.agc.gov.sg/Act/{self.retrieve}?DocType=Act&ViewType=Sl&PageIndex=0&PageSize=500"
+        yield scrapy.Request(url=subsid_link, meta= item, callback = self.parse_subsid)
 
       yield item
 
   def parse_subsid(self, response):
-    item = legisItem()
-    data = response.xpath("//table[@class='table browse-list']/tbody/tr/td/a/text()").extract()
-    res = []
-    for sub in data:
-      res.append(sub)
-    item['subsid'] = res
-    yield item
+    all_subsid = response.xpath("//table[@class='table browse-list']/tbody/tr")
+    for sub in all_subsid:
+      item = subsidItem()
+      item["short_title"] = sub.xpath("td/a/text()").get()
+      item["order_number"] = sub.xpath("td/text()")[3].get().strip().replace("/", "-")    # no idea why it's 3
+      item["shorthand"] = item["short_title"] + " " + item["order_number"]
+      item["link"] = sub.xpath("td/a/@href").get()
+    
+      request = scrapy.Request(response.urljoin(item["link"]), self.get_subsid)
+      request.meta["subsidItem"] = item
+      yield request
   
+  def get_subsid(self, response):
+    item = response.meta["subsidItem"]
+    item["html"] = response.xpath("//*[@id='legis']").get()
+    # TODO - ^ get data more cleanly without all the headers (figure out selectors) 
+    self.write_to_file(self.saveTo, item)
+    yield item
+    
 
   # Scrape links to individual Acts from contents page, creating a legisItem for each. 
   # Then pass each legisItem to scrape_one() to obtain their contents
