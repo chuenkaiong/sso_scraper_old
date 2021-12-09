@@ -194,7 +194,8 @@ class SsoSpider(scrapy.Spider):
       
       parts.append(download_part(url, headers))
     
-    return stitch_parts(parts)
+    return stitch_parts(parts).replace(u'\xa0', u' ')
+
 
   # write contents of Act to file
   def write_to_file(self, saveTo, item):
