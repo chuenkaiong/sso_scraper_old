@@ -81,24 +81,21 @@ class SsoSpider(scrapy.Spider):
         subsid_link = f"https://sso.agc.gov.sg/Act/{self.retrieve}?DocType=Act&ViewType=Sl&PageIndex=0&PageSize=500"
         yield scrapy.Request(url=subsid_link, meta= item, callback = self.parse_subsid)
       
-      else:
         self.write_to_file(self.saveTo, item)
 
       yield item
 
   def parse_subsid(self, response):
-    #enables to print out subsidiary legislation titles with the main act
     item = legisItem()
-    item['html'] = response.meta.get('html')
-    item['shorthand'] = response.meta.get('shorthand')
-    item['link'] = response.meta.get('link')
+    # item['html'] = response.meta.get('html')
+    # item['shorthand'] = response.meta.get('shorthand')
+    # item['link'] = response.meta.get('link')
     data = response.xpath("//table[@class='table browse-list']/tbody/tr/td/a/text()").extract()
     res = []
     for sub in data:
       res.append(sub)
     item['subsid'] = res
     yield item
-    self.write_to_file(self.saveTo, item)
     
     #finds subsidiary legislation and gets the title, link etc of subsid 
     all_subsid = response.xpath("//table[@class='table browse-list']/tbody/tr")
@@ -136,15 +133,10 @@ class SsoSpider(scrapy.Spider):
       item["shorthand"] = link.split("/")[-1]
       item["link"] = link
 
-      #finds pdf link - not working in for loop
-      pdf_link = act.xpath("//div[@class='legis-title']/a/@href").get()
-      if pdf_link:
-        item["pdf"] = 'Yes'
-      
-      #finds subsid link - below code freezes
-      # if self.include_subsid:
-      #   subsid_link = f"https://sso.agc.gov.sg/Act/{item['shorthand']}?DocType=Act&ViewType=Sl&PageIndex=0&PageSize=500"
-      #   yield scrapy.Request(url=subsid_link, meta= item, callback = self.parse_subsid)
+      #finds subsid link - 
+      if self.include_subsid:
+        subsid_link = f"https://sso.agc.gov.sg/Act/{item['shorthand']}?DocType=Act&ViewType=Sl&PageIndex=0&PageSize=500"
+        yield scrapy.Request(url=subsid_link, meta= item, callback = self.parse_subsid)
 
       # pass each legisItem to scrape_one() to write the contents of the Act to a file
       request = scrapy.Request(url=link, callback=self.scrape_one)
