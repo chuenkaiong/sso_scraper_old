@@ -116,7 +116,6 @@ class SsoSpider(scrapy.Spider):
   def get_subsid(self, response):
     item = response.meta["subsidItem"]
     item["html"] = response.xpath("//td[@class='openWd']").get() + self.get_body(response)
-    # TODO - ^ get data more cleanly without all the headers (figure out selectors) 
     self.write_to_file(self.saveTo, item)
     yield item
     
@@ -142,7 +141,7 @@ class SsoSpider(scrapy.Spider):
       if pdf_link:
         item["pdf"] = 'Yes'
       
-      #finds subsid link - freezes
+      #finds subsid link - below code freezes
       # if self.include_subsid:
       #   subsid_link = f"https://sso.agc.gov.sg/Act/{item['shorthand']}?DocType=Act&ViewType=Sl&PageIndex=0&PageSize=500"
       #   yield scrapy.Request(url=subsid_link, meta= item, callback = self.parse_subsid)
@@ -194,7 +193,7 @@ class SsoSpider(scrapy.Spider):
       
       parts.append(download_part(url, headers))
     
-    return stitch_parts(parts).replace(u'\xa0', u' ')
+    return stitch_parts(parts).replace(u'\xa0', u' ') #ensures no missing spaces
 
 
   # write contents of Act to file
