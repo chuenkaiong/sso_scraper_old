@@ -65,7 +65,7 @@ class SsoSpider(scrapy.Spider):
       item["shorthand"] = self.retrieve
       item["link"] = link
 
-      # grab the desired html and put it in the html attribute of the legisItem (TODO - handle situation where self.pdf == True)
+      # grab the desired html and put it in the html attribute of the legisItem
       item["html"] = self.get_body(response)
 
       if self.include_subsid:
@@ -95,8 +95,8 @@ class SsoSpider(scrapy.Spider):
       item = subsidItem()
       item["short_title"] = sub.xpath("td/a/text()").get()
       item["order_number"] = sub.xpath("td/text()")[3].get().strip().replace("/", "-")    # no idea why it's 3
-      item["shorthand"] = item["short_title"] + " " + item["order_number"]
       item["link"] = sub.xpath("td/a/@href").get()
+      item["shorthand"] = item["link"].split("/")[-1].split("?")[0]
     
       request = scrapy.Request(response.urljoin(item["link"]), self.get_subsid)
       request.meta["subsidItem"] = item
