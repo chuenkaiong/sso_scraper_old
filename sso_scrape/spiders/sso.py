@@ -64,31 +64,23 @@ class SsoSpider(scrapy.Spider):
       item["title"] = response.xpath("//div[@class='legis-title']/div/text()").get()
       item["shorthand"] = self.retrieve
       item["link"] = link
-      
-      #finds pdf link
-      pdf_link = response.xpath("//div[@class='legis-title']/a/@href").get()
-      if pdf_link:
-        item["pdf"] = 'Yes'
-      else:
-        item['pdf'] = 'No'
 
       # grab the desired html and put it in the html attribute of the legisItem (TODO - handle situation where self.pdf == True)
       item["html"] = self.get_body(response)
-
-      # write to file in folder (defined in CLI argument)
 
       if self.include_subsid:
         subsid_link = f"https://sso.agc.gov.sg/Act/{self.retrieve}?DocType=Act&ViewType=Sl&PageIndex=0&PageSize=500"
         yield scrapy.Request(url=subsid_link, meta= item, callback = self.parse_subsid)
       
-        self.write_to_file(self.saveTo, item)
+      # write to file in folder (defined in CLI argument)
+      self.write_to_file(self.saveTo, item)
 
       yield item
 
   def parse_subsid(self, response):
     item = legisItem()
+    shorthand =  response.meta.get('shorthand')
     # item['html'] = response.meta.get('html')
-    # item['shorthand'] = response.meta.get('shorthand')
     # item['link'] = response.meta.get('link')
     data = response.xpath("//table[@class='table browse-list']/tbody/tr/td/a/text()").extract()
     res = []
