@@ -13,3 +13,10 @@ class legisItem(scrapy.Item):
   html = scrapy.Field()
   pdf = scrapy.Field()
   subsid = scrapy.Field()
+
+class subsidItem(scrapy.Item):
+  short_title = scrapy.Field()
+  order_number = scrapy.Field()
+  shorthand = scrapy.Field()
+  link = scrapy.Field()
+  html = scrapy.Field()

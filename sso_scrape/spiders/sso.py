@@ -3,7 +3,7 @@ from scrapy.exceptions import CloseSpider
 import datetime
 import requests
 import json 
-from sso_scrape.items import legisItem
+from sso_scrape.items import legisItem, subsidItem
 from ..lib import filemgr
 
 
@@ -64,22 +64,50 @@ class SsoSpider(scrapy.Spider):
       item["title"] = response.xpath("//div[@class='legis-title']/div/text()").get()
       item["shorthand"] = self.retrieve
       item["link"] = link
-      
-      if self.pdf:
-        pdf_link = response.xpath("//a[@class='file-download']/@href").get()
-        item["pdf"] = f"https://sso.agc.gov.sg{pdf_link}" if pdf_link else None
 
-      if self.include_subsid:
-        subsid_link = response.xpath("//ul[@class='dropdown-menu dropdown-menu-right']/li/a/@href").get()
-        item["subsid"] = f"https://sso.agc.gov.sg{subsid_link}" if subsid_link else None
-
-      # grab the desired html and put it in the html attribute of the legisItem (TODO - handle situation where self.pdf == True)
+      # grab the desired html and put it in the html attribute of the legisItem
       item["html"] = self.get_body(response)
 
+      if self.include_subsid:
+        subsid_link = f"https://sso.agc.gov.sg/Act/{self.retrieve}?DocType=Act&ViewType=Sl&PageIndex=0&PageSize=500"
+        yield scrapy.Request(url=subsid_link, meta= item, callback = self.parse_subsid)
+      
       # write to file in folder (defined in CLI argument)
       self.write_to_file(self.saveTo, item)
+
       yield item
 
+  def parse_subsid(self, response):
+    item = legisItem()
+    shorthand =  response.meta.get('shorthand')
+    # item['html'] = response.meta.get('html')
+    # item['link'] = response.meta.get('link')
+    data = response.xpath("//table[@class='table browse-list']/tbody/tr/td/a/text()").extract()
+    res = []
+    for sub in data:
+      res.append(sub)
+    item['subsid'] = res
+    yield item
+    
+    #finds subsidiary legislation and gets the title, link etc of subsid 
+    all_subsid = response.xpath("//table[@class='table browse-list']/tbody/tr")
+    for sub in all_subsid:
+      item = subsidItem()
+      item["short_title"] = sub.xpath("td/a/text()").get()
+      item["order_number"] = sub.xpath("td/text()")[3].get().strip().replace("/", "-")    # no idea why it's 3
+      item["link"] = sub.xpath("td/a/@href").get()
+      item["shorthand"] = item["link"].split("/")[-1].split("?")[0]
+    
+      request = scrapy.Request(response.urljoin(item["link"]), self.get_subsid)
+      request.meta["subsidItem"] = item
+      yield request
+  
+  def get_subsid(self, response):
+    item = response.meta["subsidItem"]
+    item["html"] = response.xpath("//td[@class='openWd']").get() + self.get_body(response)
+    self.write_to_file(self.saveTo, item)
+    yield item
+    
 
   # Scrape links to individual Acts from contents page, creating a legisItem for each. 
   # Then pass each legisItem to scrape_one() to obtain their contents
@@ -87,7 +115,7 @@ class SsoSpider(scrapy.Spider):
     acts =  response.xpath("//table[@class='table browse-list']/tbody/tr")
 
     # FOR TESTING PURPOSES - to shorten testing process. Remove when finished with testing. 
-    acts = acts[:5]
+    acts = acts[:3]
 
     # Create legisItem for each link to an Act in the response, set attributes of legisItem. 
     for act in acts:
@@ -97,13 +125,10 @@ class SsoSpider(scrapy.Spider):
       item["shorthand"] = link.split("/")[-1]
       item["link"] = link
 
-      if self.pdf:
-        pdf_link = act.xpath("./td/a[@class='non-ajax file-download']/@href").get()
-        item["pdf"] = f"https://sso.agc.gov.sg{pdf_link}" if pdf_link else None
-
+      #finds subsid link - 
       if self.include_subsid:
-        subsid_link = act.xpath("./td/a[@class='non-ajax sl']/@href").get()
-        item["subsid"] = f"https://sso.agc.gov.sg{subsid_link}" if subsid_link else None
+        subsid_link = f"https://sso.agc.gov.sg/Act/{item['shorthand']}?DocType=Act&ViewType=Sl&PageIndex=0&PageSize=500"
+        yield scrapy.Request(url=subsid_link, meta= item, callback = self.parse_subsid)
 
       # pass each legisItem to scrape_one() to write the contents of the Act to a file
       request = scrapy.Request(url=link, callback=self.scrape_one)
@@ -152,11 +177,15 @@ class SsoSpider(scrapy.Spider):
       
       parts.append(download_part(url, headers))
     
-    return stitch_parts(parts)
+    return stitch_parts(parts).replace(u'\xa0', u' ') #ensures no missing spaces
+
 
   # write contents of Act to file
   def write_to_file(self, saveTo, item):
     with open(f"{saveTo}/{item['shorthand']}.html", "w") as f:
+      #prints subsid link at the top of .html file
+      if 'subsid' in item:
+        f.write(f"Subsidiary Legislation Link: {item['subsid']}")
       #handles unicode encode error
       f.write(item["html"].encode('ascii', errors='ignore').decode('unicode-escape'))
 
@@ -174,3 +203,4 @@ def stitch_parts(parts):
     first, *remaining = parts
     insert_idx = first.find('<div class="dms"')
     return first[:insert_idx] + ''.join(remaining) + first[insert_idx:]
+
